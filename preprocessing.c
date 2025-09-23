@@ -1,14 +1,13 @@
-#include <preprocessing.h>
+#include "preprocessing.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdbool.h>
-#define MAX_LINE_LENGTH 1024  // 最大行长度
 // 定义有效的命令选项
 
 
-/*
+
 const char *valid_options[] = {
     "--help",
     "--version",
@@ -16,11 +15,35 @@ const char *valid_options[] = {
     "--output",
     NULL  // 结束标记
 };
-*/
 
+
+int remove_comments(char *line) {
+    if (line == NULL || *line == '\0') {
+        return 1;
+    }
+    
+    // 查找注释开始位置
+    char *comment_start = strchr(line, '#');
+    
+    // 如果有注释，截断注释部分
+    if (comment_start != NULL) {
+        *comment_start = '\0';
+    }
+    
+    // 检查处理后是否为空行（只包含空白字符）
+    int is_empty = 1;
+    for (int i = 0; line[i] != '\0'; i++) {
+        if (!isspace((unsigned char)line[i])) {
+            is_empty = 0;
+            break;
+        }
+    }
+    
+    return is_empty;
+}
 
 /**
- * 检查Makefile的静态语法规则
+ * 检查Makefile的静态语法规则，忽略注释内容
  * @param filename 要检查的Makefile路径
  * @return 0表示检查通过，1表示发现错误
  */
@@ -38,21 +61,25 @@ int check_makefile_syntax(const char *filename) {
 
     while (fgets(line, MAX_LINE_LENGTH, file) != NULL) {
         line_num++;
+        // 保存原始行用于处理（避免修改原始输入）
+        char processed_line[MAX_LINE_LENGTH];
+        strcpy(processed_line, line);
+        
         // 去除行尾的换行符
-        size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') {
-            line[len - 1] = '\0';
+        size_t len = strlen(processed_line);
+        if (len > 0 && processed_line[len - 1] == '\n') {
+            processed_line[len - 1] = '\0';
         }
 
-        // 跳过空行（预处理后理论上不存在，但保留防御性检查）
-        if (strlen(line) == 0) {
+        // 移除注释，如果是纯注释行或空行则跳过检查
+        if (remove_comments(processed_line)) {
             continue;
         }
 
         // 检查是否为目标行（包含冒号）
-        if (strchr(line, ':') != NULL) {
+        if (strchr(processed_line, ':') != NULL) {
             // 验证目标行格式：冒号不能是第一个字符
-            if (line[0] == ':') {
+            if (processed_line[0] == ':') {
                 printf("Line%d: Invalid target definition (starts with colon)\n", line_num);
                 error_count++;
             } else {
@@ -62,7 +89,7 @@ int check_makefile_syntax(const char *filename) {
         // 不是目标行则检查是否为命令行
         else {
             // 检查命令行是否以Tab开头
-            if (line[0] == '\t') {
+            if (processed_line[0] == '\t') {
                 // 检查命令是否出现在目标行之前
                 if (!rule_defined) {
                     printf("Line%d: Command found before rule\n", line_num);
@@ -88,6 +115,8 @@ int check_makefile_syntax(const char *filename) {
         return 1;
     }
 }
+
+
 // 去除行尾的空白字符（空格、制表符、换行符等）
 void trim_trailing_whitespace(char *str) {
     if (str == NULL || *str == '\0') return;
