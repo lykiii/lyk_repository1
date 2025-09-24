@@ -16,6 +16,5 @@ void process_makefile(int verbose);
 void show_help(const char *program_name);
 void show_version();
 int is_valid_option(const char *option);
-int is_valid_option(const char *option);
 
 #endif 

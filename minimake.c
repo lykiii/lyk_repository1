@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "preprocessing.h"
+#include "level2.h"
 
 
 int main(int argc, char *argv[]) {
@@ -65,7 +66,30 @@ int main(int argc, char *argv[]) {
         makefile_path = argv[1];
     }
 */
-    return check_makefile_syntax(makefile_path);
+    MakefileData data;
+    init_makefile_data(&data);
+    
+    int result = parse_and_check_makefile("./Makefile", &data);
+    
+    // 调试输出：打印所有解析的规则(可选)
+    
+    printf("\n解析到 %d 个规则:\n", data.rule_count);
+    for (int i = 0; i < data.rule_count; i++) {
+        Rule *rule = &data.rules[i];
+        printf("目标: %s (行号: %d)\n", rule->target, rule->line_num);
+        printf("  依赖(%d个): ", rule->dep_count);
+        for (int j = 0; j < rule->dep_count; j++) {
+            printf("%s ", rule->dependencies[j]);
+        }
+        printf("\n  命令(%d个):\n", rule->cmd_count);
+        for (int j = 0; j < rule->cmd_count; j++) {
+            printf("    %s\n", rule->commands[j]);
+        }
+    }
+    
+    
+    
+    return check_makefile_syntax(makefile_path)&&result;
     }
 
 
