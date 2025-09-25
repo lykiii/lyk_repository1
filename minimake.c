@@ -4,7 +4,8 @@
 #include "level2.h"
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     // 处理不带任何参数的情况
     if (argc == 1) {
         printf("没有提供任何参数。用法: %s [选项]...\n", argv[0]);
@@ -43,7 +44,7 @@ int main(int argc, char *argv[]) {
         else {
             printf("错误: 不正确的参数 '%s'\n", argv[i]);
             printf("使用 '%s --help' 查看所有可用选项。\n", argv[0]);
-            return 1;
+           
         }
     }
     int verbose = 0;
@@ -87,10 +88,23 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // 检查命令行参数
+    if (argc != 2) {
+        printf("用法: %s <目标名称>\n", argv[0]);
+        printf("示例: %s app\n", argv[0]);
+        return 1;
+    }
     
+    MakefileData data1;
+    init_makefile_data(&data1);
     
+    // 解析并检查Makefile
+    int parse_result = parse_and_check_makefile("./Makefile", &data1);
+    if (parse_result != 0) {
+        printf("Makefile解析失败，无法继续执行\n");
+        return 1;
+    }
+    execute_target(&data1, argv[1]);
     return check_makefile_syntax(makefile_path)&&result;
     }
-
-
 

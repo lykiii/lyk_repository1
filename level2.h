@@ -34,6 +34,7 @@ typedef struct {
     int error_count;          // 错误数量
 } MakefileData;
 
+int execute_target(MakefileData *data, const char *target_name);
 void init_makefile_data(MakefileData *data);
 void add_error(MakefileData *data, const char *format, ...);
 bool file_exists(const char *filename);

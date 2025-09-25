@@ -12,6 +12,30 @@
 #define MAX_COMMANDS 20       // 每个目标最大命令数量
 #define MAX_FILENAME_LEN 33   // 文件名最大长度(含结束符)
 
+// 新增：执行指定目标的命令
+int execute_target(MakefileData *data, const char *target_name) {
+    int target_index = find_target_index(data, target_name);
+    if (target_index == -1) {
+        printf("错误：目标 '%s' 未定义\n", target_name);
+        return 1;
+    }
+    
+    Rule *target = &data->rules[target_index];
+    printf("正在执行目标: %s\n", target->target);
+    
+    // 依次执行目标的所有命令
+    for (int i = 0; i < target->cmd_count; i++) {
+        printf("执行命令: %s\n", target->commands[i]);
+        int result = system(target->commands[i]);  // 使用system调用执行命令
+        if (result != 0) {
+            printf("命令执行失败: %s (返回值: %d)\n", target->commands[i], result);
+            return 1;
+        }
+    }
+    
+    printf("目标 '%s' 执行完成\n", target->target);
+    return 0;
+}
 
 // 初始化Makefile数据结构
 void init_makefile_data(MakefileData *data) {
@@ -163,8 +187,8 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
 
     char line[MAX_LINE_LENGTH];
     int line_num = 0;
-    bool in_comment = false;
-    int current_rule_index = -1;
+    //bool in_comment = false;
+    
 
     while (fgets(line, MAX_LINE_LENGTH, file)) {
         line_num++;
@@ -188,7 +212,7 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
         if (strlen(trimmed_line) == 0) {
             continue;
         }
-        
+        int current_rule_index = -1;
         // 判断是目标行还是命令行
         if (strchr(trimmed_line, ':') != NULL) {
             // 目标行解析
@@ -216,30 +240,3 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
     return data->error_count > 0 ? 1 : 0;
 }
 
-// 测试主函数
-/*
-int main() {
-    MakefileData data;
-    init_makefile_data(&data);
-    
-    int result = parse_and_check_makefile("./Makefile", &data);
-    
-    // 调试输出：打印所有解析的规则(可选)
-    
-    printf("\n解析到 %d 个规则:\n", data.rule_count);
-    for (int i = 0; i < data.rule_count; i++) {
-        Rule *rule = &data.rules[i];
-        printf("目标: %s (行号: %d)\n", rule->target, rule->line_num);
-        printf("  依赖(%d个): ", rule->dep_count);
-        for (int j = 0; j < rule->dep_count; j++) {
-            printf("%s ", rule->dependencies[j]);
-        }
-        printf("\n  命令(%d个):\n", rule->cmd_count);
-        for (int j = 0; j < rule->cmd_count; j++) {
-            printf("    %s\n", rule->commands[j]);
-        }
-    }
-    
-    
-    return result;
-}*/
