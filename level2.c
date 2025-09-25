@@ -212,12 +212,12 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
         if (strlen(trimmed_line) == 0) {
             continue;
         }
-        int current_rule_index = -1;
+        //int current_rule_index = -1;
         // 判断是目标行还是命令行
         if (strchr(trimmed_line, ':') != NULL) {
             // 目标行解析
             parse_target_line(data, trimmed_line, line_num);
-            current_rule_index = data->rule_count - 1;
+            //current_rule_index = data->rule_count - 1;
         } else if (line[0] == '\t') {
             // 命令行(保留原始缩进后的内容)
             char *cmd = trim_whitespace(line + 1);  // 跳过Tab
