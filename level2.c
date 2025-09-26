@@ -201,7 +201,23 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
             processed_line[len - 1] = '\0';
         }
         
-        // 移除注释
+        // -------------- 新增：先处理原始行的注释（避免命令行注释残留）--------------
+        // 复制一份原始行用于命令行解析（单独处理注释，不影响目标行判断）
+        char cmd_line[MAX_LINE_LENGTH];
+        strcpy(cmd_line, line);
+        // 移除命令行中的注释（包括行尾注释）
+        char *cmd_comment_pos = strchr(cmd_line, '#');
+        if (cmd_comment_pos) {
+            *cmd_comment_pos = '\0';  // 截断注释部分，只保留命令本体
+        }
+        // 移除命令行尾的换行符（与processed_line处理逻辑一致）
+        size_t cmd_len = strlen(cmd_line);
+        if (cmd_len > 0 && cmd_line[cmd_len - 1] == '\n') {
+            cmd_line[cmd_len - 1] = '\0';
+        }
+        // ------------------------------------------------------------------------
+        
+        // 移除processed_line的注释（用于目标行判断，原有逻辑保留）
         char *comment_pos = strchr(processed_line, '#');
         if (comment_pos) {
             *comment_pos = '\0';
@@ -218,12 +234,14 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
             // 目标行解析
             parse_target_line(data, trimmed_line, line_num);
             //current_rule_index = data->rule_count - 1;
-        } else if (line[0] == '\t') {
-            // 命令行(保留原始缩进后的内容)
-            char *cmd = trim_whitespace(line + 1);  // 跳过Tab
+        } else if (line[0] == '\t') {  // 仍用原始行判断是否为Tab开头（避免processed_line修改影响缩进判断）
+            // -------------- 修改：使用处理过注释的cmd_line，而非原始line --------------
+            // 跳过Tab，提取命令本体（已移除注释）
+            char *cmd = trim_whitespace(cmd_line + 1);  
             if (strlen(cmd) > 0) {
                 add_command_to_current_rule(data, cmd);
             }
+            // ------------------------------------------------------------------------
         }
     }
 
@@ -239,4 +257,3 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
     
     return data->error_count > 0 ? 1 : 0;
 }
-

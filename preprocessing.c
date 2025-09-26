@@ -211,7 +211,7 @@ void show_help(const char *program_name) {
     printf("  --output    指定输出文件路径（需后跟文件名）\n");
     printf("\n示例:\n");
     printf("  %s --verbose\n", program_name);
-    printf("  %s --output result.txt\n", program_name);
+    printf("  %s result.txt\n", program_name);
 }
 
 // 显示版本信息

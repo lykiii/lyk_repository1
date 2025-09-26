@@ -2,6 +2,7 @@
 #include <string.h>
 #include "preprocessing.h"
 #include "level2.h"
+#include "level3.h"
 
 
 int main(int argc, char *argv[])
@@ -12,7 +13,6 @@ int main(int argc, char *argv[])
         printf("使用 '%s --help' 查看所有可用选项。\n", argv[0]);
         return 0;
     }
-
     // 遍历所有参数进行处理
     for (int i = 1; i < argc; i++) {
         // 检查是否是帮助命令
@@ -41,9 +41,11 @@ int main(int argc, char *argv[])
             printf("详细输出模式已启用\n");
         }
         // 检查未知参数
-        else {
+        
+        else if(argv[i][0]== '-'){
             printf("错误: 不正确的参数 '%s'\n", argv[i]);
             printf("使用 '%s --help' 查看所有可用选项。\n", argv[0]);
+            return 1;
            
         }
     }
@@ -56,22 +58,39 @@ int main(int argc, char *argv[])
             break;
         }
     }
+    
+    
+    // 检查命令行参数
+    if (argc != 2) {
+        printf("用法: %s <目标名称>\n", argv[0]);
+        printf("示例: %s app\n", argv[0]);
+        return 1;
+    }
+    
     // 处理Makefile
     process_makefile(verbose);
     
-    
+   
     const char *makefile_path = "./Makefile";
-    
+     
     // 支持通过参数指定其他文件（如预处理后的文件）
    /* if (argc > 1) {
         makefile_path = argv[1];
     }
 */
+    if(check_makefile_syntax(makefile_path)!=0){ 
+    printf("Makefile语法错误，无法继续执行\n");
+    return 1;
+    }
+    
     MakefileData data;
     init_makefile_data(&data);
     
     int result = parse_and_check_makefile("./Makefile", &data);
-    
+    if(result!=0){
+    printf("Makefile解析失败，无法继续执行\n");
+    return 1;
+    }
     // 调试输出：打印所有解析的规则(可选)
     
     printf("\n解析到 %d 个规则:\n", data.rule_count);
@@ -88,23 +107,21 @@ int main(int argc, char *argv[])
         }
     }
     
-    // 检查命令行参数
-    if (argc != 2) {
-        printf("用法: %s <目标名称>\n", argv[0]);
-        printf("示例: %s app\n", argv[0]);
-        return 1;
-    }
     
+/*  
     MakefileData data1;
     init_makefile_data(&data1);
-    
-    // 解析并检查Makefile
+
+    // 解析并检查Makefile(重复)
     int parse_result = parse_and_check_makefile("./Makefile", &data1);
     if (parse_result != 0) {
         printf("Makefile解析失败，无法继续执行\n");
         return 1;
     }
-    execute_target(&data1, argv[1]);
-    return check_makefile_syntax(makefile_path)&&result;
+*/    
+    //execute_target(&data, argv[1]);
+    
+    test(&data);
+    return result;
     }
 
