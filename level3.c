@@ -255,7 +255,7 @@ void build_dependency(MakefileData* data, DependencyGraph* graph,
                     for (int j = 0; j < rule->cmd_count; j++) {
                         printf("    执行命令: %s\n", rule->commands[j]);
                         // 实际执行命令
-                        system(rule->commands[j]);
+                        my_system(rule->commands[j]);
                     }
                 }
             }
@@ -333,7 +333,7 @@ void check_timestamps_and_build(MakefileData* data, DependencyGraph* graph,
             if (all_deps_exist) {
                 for (int j = 0; j < rule->cmd_count; j++) {
                     printf("    执行命令: %s\n", rule->commands[j]);
-                    system(rule->commands[j]); // 实际执行命令
+                    my_system(rule->commands[j]); // 实际执行命令
                 }
             }
         } else {

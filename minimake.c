@@ -3,6 +3,7 @@
 #include "preprocessing.h"
 #include "level2.h"
 #include "level3.h"
+#include "level4.h"
 
 
 int main(int argc, char *argv[])

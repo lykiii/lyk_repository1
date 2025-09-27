@@ -1,7 +1,8 @@
 #ifndef LEVEL3_H
 #define LEVEL3_H
 
-#include"level2.h"
+#include "level2.h"
+#include "level4.h"
 
 #define MAX_FILENAME_LEN 33   // 文件名最大长度(含结束符)
 #define MAX_DEPENDENCIES 50   // 每个目标最大依赖数量
