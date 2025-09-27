@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <stdarg.h>
+#include "level5.h"
 
 #define MAX_LINE_LENGTH 1024
 #define MAX_TARGETS 100       // 最大目标数量
@@ -16,6 +17,8 @@
 #define MAX_COMMANDS 20       // 每个目标最大命令数量
 #define MAX_FILENAME_LEN 33   // 文件名最大长度(含结束符)
 
+
+/*
 // 存储单个规则的结构体
 typedef struct {
     char target[MAX_FILENAME_LEN];       // 目标名称
@@ -33,17 +36,20 @@ typedef struct {
     char errors[100][256];    // 错误信息
     int error_count;          // 错误数量
 } MakefileData;
+*/
+
 
 int execute_target(MakefileData *data, const char *target_name);
 void init_makefile_data(MakefileData *data);
 void add_error(MakefileData *data, const char *format, ...);
 bool file_exists(const char *filename);
 int find_target_index(MakefileData *data, const char *target);
-char* trim_whitespace(char *str);
+char *trim_whitespace(char *str);
 void parse_target_line(MakefileData *data, char *line, int line_num);
-void add_command_to_current_rule(MakefileData *data, char *line);
+void add_command_to_current_rule(MakefileData *data, char *line, int line_num);
 void check_dependencies(MakefileData *data);
 int parse_and_check_makefile(const char *filename, MakefileData *data);
+
 
 
 

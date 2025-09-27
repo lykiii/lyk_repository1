@@ -5,14 +5,14 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include "level2.h"
-
+#include "level5.h"
 #define MAX_LINE_LENGTH 1024
 #define MAX_TARGETS 100       // 最大目标数量
 #define MAX_DEPENDENCIES 50   // 每个目标最大依赖数量
 #define MAX_COMMANDS 20       // 每个目标最大命令数量
 #define MAX_FILENAME_LEN 33   // 文件名最大长度(含结束符)
 
-// 新增：执行指定目标的命令
+// 第一次编译临时函数：执行指定目标的命令
 int execute_target(MakefileData *data, const char *target_name) {
     int target_index = find_target_index(data, target_name);
     if (target_index == -1) {
@@ -36,13 +36,19 @@ int execute_target(MakefileData *data, const char *target_name) {
     printf("目标 '%s' 执行完成\n", target->target);
     return 0;
 }
-
+  
+  
+  
 // 初始化Makefile数据结构
 void init_makefile_data(MakefileData *data) {
     data->rule_count = 0;
     data->error_count = 0;
     memset(data->rules, 0, sizeof(data->rules));
     memset(data->errors, 0, sizeof(data->errors));
+    
+    //初始化变量存储
+    data->var_count = 0;
+    memset(data->variables, 0, sizeof(data->variables));
 }
 
 // 添加错误信息
@@ -83,55 +89,54 @@ char* trim_whitespace(char *str) {
         while (end > str && isspace((unsigned char)*end)) end--;
         end[1] = '\0';
     }
-    
     return str;
 }
 
 // 解析目标行(如 "app: main.c utils.c")
 void parse_target_line(MakefileData *data, char *line, int line_num) {
-    // 分割目标和依赖(通过冒号)
     char *colon_pos = strchr(line, ':');
-    if (!colon_pos) return;  // 应该不会发生，已在语法检查中过滤
+    if (!colon_pos) return;
     
-    // 提取目标
     *colon_pos = '\0';
     char *target = trim_whitespace(line);
     
-    // 检查目标名长度
     if (strlen(target) >= MAX_FILENAME_LEN) {
-        add_error(data, "Line%d: Target name too long (max %d characters)", 
-                 line_num, MAX_FILENAME_LEN-1);
+        add_error(data, "Line%d: Target name too long (max %d chars)", line_num, MAX_FILENAME_LEN-1);
         return;
     }
     
-    // 检查重复定义
     if (find_target_index(data, target) != -1) {
-        add_error(data, "Line%d: Duplicate target definition '%s'", 
-                 line_num, target);
+        add_error(data, "Line%d: Duplicate target '%s'", line_num, target);
         return;
     }
     
-    // 创建新规则
     Rule *new_rule = &data->rules[data->rule_count];
     strcpy(new_rule->target, target);
     new_rule->line_num = line_num;
     new_rule->dep_count = 0;
     new_rule->cmd_count = 0;
     
-    // 解析依赖
-    char *deps_part = trim_whitespace(colon_pos + 1);
-    char *dep_token = strtok(deps_part, " \t");
+    // 改动：展开依赖列表中的变量（如 $(SRC) → main.c utils.c）
+    char *deps_raw = trim_whitespace(colon_pos + 1);
+    char deps_expanded[MAX_LINE_LENGTH] = {0};
+    expand_variable(data, deps_raw, deps_expanded, line_num);
     
+    // 分割展开后的依赖项
+    char *dep_token = strtok(deps_expanded, " \t");
     while (dep_token && new_rule->dep_count < MAX_DEPENDENCIES) {
-        // 检查依赖名长度
-        if (strlen(dep_token) >= MAX_FILENAME_LEN) {
-            add_error(data, "Line%d: Dependency name too long (max %d characters)", 
-                     line_num, MAX_FILENAME_LEN-1);
+        char *dep_trim = trim_whitespace(dep_token);
+        if (strlen(dep_trim) == 0) {
             dep_token = strtok(NULL, " \t");
             continue;
         }
         
-        strcpy(new_rule->dependencies[new_rule->dep_count], dep_token);
+        if (strlen(dep_trim) >= MAX_FILENAME_LEN) {
+            add_error(data, "Line%d: Dependency too long (max %d chars)", line_num, MAX_FILENAME_LEN-1);
+            dep_token = strtok(NULL, " \t");
+            continue;
+        }
+        
+        strcpy(new_rule->dependencies[new_rule->dep_count], dep_trim);
         new_rule->dep_count++;
         dep_token = strtok(NULL, " \t");
     }
@@ -140,15 +145,26 @@ void parse_target_line(MakefileData *data, char *line, int line_num) {
 }
 
 // 向当前规则添加命令
-void add_command_to_current_rule(MakefileData *data, char *line) {
-    if (data->rule_count == 0) return;  // 没有目标规则，应该已在语法检查中报错
+// 改动：新增 line_num 参数用于报错，内部添加变量展开
+void add_command_to_current_rule(MakefileData *data, char *line, int line_num) {
+    if (data->rule_count == 0) return;
     
     Rule *current_rule = &data->rules[data->rule_count - 1];
-    if (current_rule->cmd_count < MAX_COMMANDS) {
-        strcpy(current_rule->commands[current_rule->cmd_count], line);
-        current_rule->cmd_count++;
+    if (current_rule->cmd_count >= MAX_COMMANDS) {
+        add_error(data, "Line%d: Too many commands for '%s' (max %d)", line_num, current_rule->target, MAX_COMMANDS);
+        return;
     }
+    
+    // 改动：展开命令中的变量（如 $(CC) → gcc）
+    char cmd_expanded[MAX_EXPANDED_LEN] = {0};
+    expand_variable(data, line, cmd_expanded, line_num);
+    
+    // 存储展开后的命令
+    strncpy(current_rule->commands[current_rule->cmd_count], cmd_expanded, MAX_LINE_LENGTH - 1);
+    current_rule->commands[current_rule->cmd_count][MAX_LINE_LENGTH - 1] = '\0'; // 防溢出
+    current_rule->cmd_count++;
 }
+
 
 // 检查所有依赖是否有效
 void check_dependencies(MakefileData *data) {
@@ -187,73 +203,51 @@ int parse_and_check_makefile(const char *filename, MakefileData *data) {
 
     char line[MAX_LINE_LENGTH];
     int line_num = 0;
-    //bool in_comment = false;
-    
 
     while (fgets(line, MAX_LINE_LENGTH, file)) {
         line_num++;
         char processed_line[MAX_LINE_LENGTH];
         strcpy(processed_line, line);
-        
-        // 移除行尾换行符
-        size_t len = strlen(processed_line);
-        if (len > 0 && processed_line[len - 1] == '\n') {
-            processed_line[len - 1] = '\0';
-        }
-        
-        // -------------- 新增：先处理原始行的注释（避免命令行注释残留）--------------
-        // 复制一份原始行用于命令行解析（单独处理注释，不影响目标行判断）
-        char cmd_line[MAX_LINE_LENGTH];
-        strcpy(cmd_line, line);
-        // 移除命令行中的注释（包括行尾注释）
-        char *cmd_comment_pos = strchr(cmd_line, '#');
-        if (cmd_comment_pos) {
-            *cmd_comment_pos = '\0';  // 截断注释部分，只保留命令本体
-        }
-        // 移除命令行尾的换行符（与processed_line处理逻辑一致）
-        size_t cmd_len = strlen(cmd_line);
-        if (cmd_len > 0 && cmd_line[cmd_len - 1] == '\n') {
-            cmd_line[cmd_len - 1] = '\0';
-        }
-        // ------------------------------------------------------------------------
-        
-        // 移除processed_line的注释（用于目标行判断，原有逻辑保留）
+
+        // 1. 处理注释和换行符（原有逻辑）
         char *comment_pos = strchr(processed_line, '#');
-        if (comment_pos) {
-            *comment_pos = '\0';
-        }
-        
-        // 处理空白行
+        if (comment_pos) *comment_pos = '\0';
+        size_t len = strlen(processed_line);
+        if (len > 0 && processed_line[len - 1] == '\n') processed_line[len - 1] = '\0';
         char *trimmed_line = trim_whitespace(processed_line);
-        if (strlen(trimmed_line) == 0) {
-            continue;
+        if (strlen(trimmed_line) == 0) continue; // 跳过空白行
+
+        // 改动1：优先解析变量行（如 CC = gcc）
+        if (parse_variable_definition(data, trimmed_line, line_num)) {
+            continue; // 是变量行，跳过后续判断
         }
-        //int current_rule_index = -1;
-        // 判断是目标行还是命令行
+
+        // 2. 原有逻辑：解析目标行/命令行
         if (strchr(trimmed_line, ':') != NULL) {
-            // 目标行解析
             parse_target_line(data, trimmed_line, line_num);
-            //current_rule_index = data->rule_count - 1;
-        } else if (line[0] == '\t') {  // 仍用原始行判断是否为Tab开头（避免processed_line修改影响缩进判断）
-            // -------------- 修改：使用处理过注释的cmd_line，而非原始line --------------
-            // 跳过Tab，提取命令本体（已移除注释）
-            char *cmd = trim_whitespace(cmd_line + 1);  
-            if (strlen(cmd) > 0) {
-                add_command_to_current_rule(data, cmd);
+        } else if (line[0] == '\t') { // 用原始行判断Tab缩进
+            char *cmd_raw = trim_whitespace(processed_line + 1);
+            if (strlen(cmd_raw) > 0) {
+                // 改动2：调用修改后的命令添加函数（传 line_num）
+                add_command_to_current_rule(data, cmd_raw, line_num);
             }
-            // ------------------------------------------------------------------------
+        } else {
+            // 改动3：新增无效行报错（既不是变量/目标/命令）
+            add_error(data, "Line%d: Invalid line (not variable/target/command)", line_num);
         }
     }
 
     fclose(file);
-    
-    // 检查依赖有效性
     check_dependencies(data);
     
-    // 输出所有错误
+    // 输出错误（原有逻辑）
     for (int i = 0; i < data->error_count; i++) {
-        printf("%s\n", data->errors[i]);
+        printf("Error: %s\n", data->errors[i]);
     }
     
     return data->error_count > 0 ? 1 : 0;
 }
+
+
+
+

@@ -42,8 +42,9 @@ int remove_comments(char *line) {
     return is_empty;
 }
 
+
 /**
- * 检查Makefile的静态语法规则，忽略注释内容
+ * 检查Makefile的静态语法规则，包括变量定义与动态替换语法
  * @param filename 要检查的Makefile路径
  * @return 0表示检查通过，1表示发现错误
  */
@@ -63,23 +64,85 @@ int check_makefile_syntax(const char *filename) {
         line_num++;
         // 保存原始行用于处理（避免修改原始输入）
         char processed_line[MAX_LINE_LENGTH];
-        strcpy(processed_line, line);
-        
-        // 去除行尾的换行符
-        size_t len = strlen(processed_line);
-        if (len > 0 && processed_line[len - 1] == '\n') {
-            processed_line[len - 1] = '\0';
-        }
+        strncpy(processed_line, line, MAX_LINE_LENGTH - 1);
+        processed_line[MAX_LINE_LENGTH - 1] = '\0';  // 确保字符串终止
+
+        // 移除行尾的换行符和空白字符（使用提供的函数）
+        trim_trailing_whitespace(processed_line);
 
         // 移除注释，如果是纯注释行或空行则跳过检查
         if (remove_comments(processed_line)) {
             continue;
         }
 
+        // 处理行首空白（手动实现，不依赖trim_whitespace）
+        char *trimmed_line = processed_line;
+        while (isspace((unsigned char)*trimmed_line)) {
+            trimmed_line++;  // 仅跳过开头空白，不修改原始字符串
+        }
+        if (*trimmed_line == '\0') {
+            continue;  // 空行跳过
+        }
+
+        // 检查是否为变量定义行（含等号，且不是目标行）
+        bool is_var_def = false;
+        char *equal_pos = strchr(trimmed_line, '=');
+        if (equal_pos != NULL && strchr(trimmed_line, ':') == NULL) {
+            // 提取变量名（等号左边）
+            size_t var_name_len = equal_pos - trimmed_line;
+            if (var_name_len >= MAX_LINE_LENGTH) {
+                printf("Line%d: Variable name too long (exceeds %d characters)\n", 
+                       line_num, MAX_LINE_LENGTH - 1);
+                error_count++;
+                is_var_def = true;
+                continue;
+            }
+
+            char var_name[MAX_LINE_LENGTH] = {0};
+            strncpy(var_name, trimmed_line, var_name_len);
+            trim_trailing_whitespace(var_name);  // 移除变量名尾部空白
+
+            // 处理变量名开头空白（手动跳过）
+            char *clean_var_name = var_name;
+            while (isspace((unsigned char)*clean_var_name)) {
+                clean_var_name++;
+            }
+
+            // 变量名合法性检查
+            if (*clean_var_name == '\0') {  // 变量名为空
+                printf("Line%d: Invalid variable definition (empty variable name)\n", line_num);
+                error_count++;
+            } else if (!isalpha((unsigned char)*clean_var_name) && *clean_var_name != '_') {  // 首字符非法
+                printf("Line%d: Invalid variable name '%s' (must start with letter or underscore)\n", 
+                       line_num, clean_var_name);
+                error_count++;
+            } else {  // 检查非法字符
+                bool has_invalid_char = false;
+                for (char *c = clean_var_name; *c; c++) {
+                    if (!isalnum((unsigned char)*c) && *c != '_') {
+                        has_invalid_char = true;
+                        break;
+                    }
+                }
+                if (has_invalid_char) {
+                    printf("Line%d: Invalid character in variable name '%s'\n", 
+                           line_num, clean_var_name);
+                    error_count++;
+                } else {
+                    is_var_def = true;  // 标记为合法变量定义行
+                }
+            }
+        }
+
+        // 如果是变量定义行，跳过后续目标/命令行检查
+        if (is_var_def) {
+            continue;
+        }
+
         // 检查是否为目标行（包含冒号）
-        if (strchr(processed_line, ':') != NULL) {
+        if (strchr(trimmed_line, ':') != NULL) {
             // 验证目标行格式：冒号不能是第一个字符
-            if (processed_line[0] == ':') {
+            if (*trimmed_line == ':') {
                 printf("Line%d: Invalid target definition (starts with colon)\n", line_num);
                 error_count++;
             } else {
@@ -88,18 +151,33 @@ int check_makefile_syntax(const char *filename) {
         }
         // 不是目标行则检查是否为命令行
         else {
-            // 检查命令行是否以Tab开头
-            if (processed_line[0] == '\t') {
+            // 检查命令行是否以Tab开头（原始行检查，保留行首空白）
+            bool is_tab_start = (processed_line[0] == '\t');
+            
+            // 处理命令内容（跳过Tab后的空白）
+            char *cmd_content = processed_line;
+            if (is_tab_start) {
+                cmd_content++;  // 跳过Tab
+                while (isspace((unsigned char)*cmd_content)) {
+                    cmd_content++;  // 跳过命令前的空白
+                }
+            }
+
+            if (is_tab_start) {
                 // 检查命令是否出现在目标行之前
                 if (!rule_defined) {
                     printf("Line%d: Command found before rule\n", line_num);
                     error_count++;
                 }
+                // 检查空命令行（仅Tab无内容）
+                if (*cmd_content == '\0') {
+                    printf("Line%d: Empty command line (only Tab, no content)\n", line_num);
+                    error_count++;
+                }
             }
-            // 既不是目标行也不是以Tab开头的命令行
+            // 既不是目标行也不是以Tab开头的命令行，且不是变量定义行
             else {
-                // 检查是否是缺少冒号的目标行
-                printf("Line%d: Missing colon in target definition\n", line_num);
+                printf("Line%d: Invalid line (not target, command, or variable definition)\n", line_num);
                 error_count++;
             }
         }
@@ -116,6 +194,34 @@ int check_makefile_syntax(const char *filename) {
     }
 }
 
+
+
+
+
+/*
+// 辅助函数：去除字符串首尾空白（保留原实现，优化注释）
+char* trim_whitespace1(char *str) {
+    if (str == NULL) {  // 新增：处理空指针，避免崩溃
+        return NULL;
+    }
+
+    // 移除开头空白（空格、Tab、换行等）
+    while (isspace((unsigned char)*str)) {
+        str++;
+    }
+
+    // 移除结尾空白（仅当字符串非空时处理）
+    if (*str != '\0') {
+        char *end = str + strlen(str) - 1;
+        while (end > str && isspace((unsigned char)*end)) {
+            end--;
+        }
+        end[1] = '\0';  // 在结尾空白后添加终止符
+    }
+
+    return str;
+}
+*/
 
 // 去除行尾的空白字符（空格、制表符、换行符等）
 void trim_trailing_whitespace(char *str) {

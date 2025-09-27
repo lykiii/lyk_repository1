@@ -4,6 +4,7 @@
 #include "level2.h"
 #include "level3.h"
 #include "level4.h"
+#include "level5.h"
 
 
 int main(int argc, char *argv[])
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
     
     
     // 检查命令行参数
-    if (argc != 2) {
+    if (argc ==1) {
         printf("用法: %s <目标名称>\n", argv[0]);
         printf("示例: %s app\n", argv[0]);
         return 1;
@@ -71,29 +72,33 @@ int main(int argc, char *argv[])
     // 处理Makefile
     process_makefile(verbose);
     
-   
-    const char *makefile_path = "./Makefile";
+//解析Makefile文件--------------------------------------------------------------------------  
+    char *makefile_path = "./Makefile";
+    if(verbose){
+    makefile_path = "./Minimake_cleared.mk";
+    }
      
     // 支持通过参数指定其他文件（如预处理后的文件）
    /* if (argc > 1) {
         makefile_path = argv[1];
     }
 */
-    if(check_makefile_syntax(makefile_path)!=0){ 
+    /*if(check_makefile_syntax(makefile_path)!=0){ 
     printf("Makefile语法错误，无法继续执行\n");
     return 1;
-    }
+    }*/
     
     MakefileData data;
     init_makefile_data(&data);
     
-    int result = parse_and_check_makefile("./Makefile", &data);
+    int result = parse_and_check_makefile(makefile_path, &data);
     if(result!=0){
     printf("Makefile解析失败，无法继续执行\n");
     return 1;
     }
-    // 调试输出：打印所有解析的规则(可选)
     
+    
+    // 调试输出：打印所有解析的规则
     printf("\n解析到 %d 个规则:\n", data.rule_count);
     for (int i = 0; i < data.rule_count; i++) {
         Rule *rule = &data.rules[i];
@@ -107,22 +112,16 @@ int main(int argc, char *argv[])
             printf("    %s\n", rule->commands[j]);
         }
     }
+//----------------------------------------------------------------------------------------  
+    
+ 
+    //execute_target(&data, argv[1]);//第一次编译执行函数
     
     
-/*  
-    MakefileData data1;
-    init_makefile_data(&data1);
-
-    // 解析并检查Makefile(重复)
-    int parse_result = parse_and_check_makefile("./Makefile", &data1);
-    if (parse_result != 0) {
-        printf("Makefile解析失败，无法继续执行\n");
-        return 1;
-    }
-*/    
-    //execute_target(&data, argv[1]);
-    
+    //构建依赖图，拓扑排序，执行时间戳检查和构建判断
     test(&data);
-    return result;
+    
+    
+    return 0;
     }
 
