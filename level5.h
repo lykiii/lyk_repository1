@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <stdarg.h>
 
+
 #define MAX_LINE_LENGTH 1024
 #define MAX_TARGETS 100       // 最大目标数量
 #define MAX_DEPENDENCIES 50   // 每个目标最大依赖数量
@@ -48,6 +49,7 @@ typedef struct {
     int var_count;                     // 变量数量
 } MakefileData;
 
+char *trim_whitespace(char *str);
 
 const char* find_variable(MakefileData *data, const char *var_name);
 void add_or_update_variable(MakefileData *data, const char *var_name, const char *var_value, int line_num);

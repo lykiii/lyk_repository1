@@ -78,20 +78,11 @@ int find_target_index(MakefileData *data, const char *target) {
     return -1;
 }
 
-// 移除字符串中的空白字符(首尾)
-char* trim_whitespace(char *str) {
-    // 移除开头空白
-    while (isspace((unsigned char)*str)) str++;
-    
-    // 移除结尾空白
-    if (*str) {
-        char *end = str + strlen(str) - 1;
-        while (end > str && isspace((unsigned char)*end)) end--;
-        end[1] = '\0';
-    }
-    return str;
-}
+//**********
 
+
+
+//**********
 // 解析目标行(如 "app: main.c utils.c")
 void parse_target_line(MakefileData *data, char *line, int line_num) {
     char *colon_pos = strchr(line, ':');

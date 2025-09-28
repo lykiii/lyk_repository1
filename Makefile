@@ -1,4 +1,4 @@
-# 链接生成可执行文件（修改1：移除链接命令中的头文件level5.h，添加level5.o）
+# 链接生成可执行文件
 minimake: minimake.o preprocessing.o level2.o level3.o level4.o level5.o
 	gcc -Wall -g minimake.o preprocessing.o level2.o level3.o level4.o level5.o -o minimake
 

@@ -1,7 +1,21 @@
 #include "level5.h"
+#include "level2.h"
 #include <stdio.h>
 #include <stdlib.h>
 
+// 移除字符串中的空白字符(首尾)
+char* trim_whitespace(char *str) {
+    // 移除开头空白
+    while (isspace((unsigned char)*str)) str++;
+    
+    // 移除结尾空白
+    if (*str) {
+        char *end = str + strlen(str) - 1;
+        while (end > str && isspace((unsigned char)*end)) end--;
+        end[1] = '\0';
+    }
+    return str;
+}
 
 // 功能：根据变量名查找值，未找到返回NULL
 const char* find_variable(MakefileData *data, const char *var_name) {
