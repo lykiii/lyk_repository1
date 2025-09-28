@@ -83,10 +83,10 @@ int main(int argc, char *argv[])
         makefile_path = argv[1];
     }
 */
-    /*if(check_makefile_syntax(makefile_path)!=0){ 
+    if(check_makefile_syntax(makefile_path)!=0){ 
     printf("Makefile语法错误，无法继续执行\n");
     return 1;
-    }*/
+    }
     
     MakefileData data;
     init_makefile_data(&data);
